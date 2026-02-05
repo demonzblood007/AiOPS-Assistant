@@ -1,12 +1,14 @@
 """AI Ops Assistant - Production-Ready Streamlit UI."""
 
 import json
+import os
 import time
 import streamlit as st
 import httpx
 from datetime import datetime
 
-API_URL = "http://localhost:8000"
+# Use API_URL from env in Docker (e.g. http://api:8000); default for local runs
+API_URL = os.environ.get("API_URL", "http://localhost:8000")
 
 # Page config
 st.set_page_config(
