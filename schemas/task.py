@@ -21,6 +21,7 @@ class TaskInput(BaseModel):
     user_id: str
     prompt: str = Field(..., min_length=1, max_length=4000)
     context: Optional[Dict[str, Any]] = None  # repo, branch, etc.
+    priority: str = Field(default="default", pattern="^(low|default|high)$")
     
     def generate_task_id(self) -> str:
         """Generate unique task_id scoped to user."""

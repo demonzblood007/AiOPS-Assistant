@@ -3,14 +3,25 @@ fastapi
 uvicorn[standard]
 streamlit
 
-# LLM & Agents
+# LLM & Agents (Core)
 langchain
-langchain-openai
+langchain-core
 langgraph
+
+# LLM Providers (install based on your provider)
+langchain-openai          # OpenAI & Azure OpenAI
+langchain-anthropic       # Anthropic Claude
+langchain-google-genai    # Google Gemini
+langchain-ollama          # Ollama (local models)
+langchain-groq            # Groq (fast inference)
 
 # Task Queue
 redis
 rq
+
+# Database
+sqlalchemy[asyncio]
+asyncpg
 
 # Observability
 langfuse
@@ -25,3 +36,7 @@ httpx
 # Utilities
 python-dotenv
 structlog
+
+# Testing
+pytest
+pytest-asyncio
