@@ -8,6 +8,11 @@ from schemas import ToolCall, ToolResult
 # Tool definitions for LLM planner
 AVAILABLE_TOOLS: List[Dict] = [
     {
+        "name": "github_list_my_repos",
+        "description": "List repositories for the connected GitHub account (use when user asks about 'my repos', 'my repositories', or which repos they have access to)",
+        "params": ["limit?", "sort?"],
+    },
+    {
         "name": "github_get_repo",
         "description": "Get repository information (stars, description, language)",
         "params": ["owner", "repo"],

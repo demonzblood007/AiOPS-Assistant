@@ -8,7 +8,9 @@ from llm import get_llm
 from tools import get_tools_description
 from observability import get_langfuse_handler
 
-PLANNER_PROMPT = """You are an expert AI Operations planner. Your job is to decompose user requests into executable tool-based plans.
+PLANNER_PROMPT = """You are an expert AI Operations planner for an assistant that acts on the user's GitHub account via an access token. Your job is to decompose user requests into executable tool-based plans.
+
+**Context**: Tasks are performed against repositories available to the connected GitHub account. Use `github_list_my_repos` when the user asks about "my repos", "my repositories", or to discover which repos they can work with. For repo-specific tasks, use owner/repo from that list or from the user's message.
 
 ## Available Tools
 {tools}

@@ -63,6 +63,7 @@ class GitHubTools:
         methods = {
             "github_get_repo": self._get_repo,
             "github_search_repos": self._search_repos,
+            "github_list_my_repos": self._list_my_repos,
             "github_get_file": self._get_file,
             "github_list_files": self._list_files,
             "github_create_issue": self._create_issue,
@@ -96,6 +97,16 @@ class GitHubTools:
             repos = [{"name": x["full_name"], "stars": x["stargazers_count"], "url": x["html_url"]} for x in items]
             return ToolResult(tool_name="github_search_repos", success=True, data={"repos": repos})
         return ToolResult(tool_name="github_search_repos", success=False, error=f"HTTP {r.status_code}")
+
+    async def _list_my_repos(self, p: Dict) -> ToolResult:
+        """List repositories for the authenticated user (GitHub token)."""
+        params = {"per_page": p.get("limit", 30), "sort": p.get("sort", "updated")}
+        r = await self._request("GET", f"{self.base_url}/user/repos", params=params)
+        if r.status_code == 200:
+            items = r.json()
+            repos = [{"full_name": x["full_name"], "name": x["name"], "owner": x["owner"]["login"], "private": x.get("private", False), "url": x["html_url"]} for x in items]
+            return ToolResult(tool_name="github_list_my_repos", success=True, data={"repos": repos})
+        return ToolResult(tool_name="github_list_my_repos", success=False, error=f"HTTP {r.status_code}")
     
     async def _get_file(self, p: Dict) -> ToolResult:
         r = await self._request("GET", f"{self.base_url}/repos/{p['owner']}/{p['repo']}/contents/{p['path']}")

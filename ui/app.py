@@ -10,8 +10,8 @@ API_URL = "http://localhost:8000"
 
 # Page config
 st.set_page_config(
-    page_title="AI Ops Assistant",
-    page_icon="🤖",
+    page_title="GitHub Repo Assistant",
+    page_icon="📂",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -48,8 +48,8 @@ if "execution_logs" not in st.session_state:
     st.session_state.execution_logs = []
 
 # Header
-st.title("🤖 AI Operations Assistant")
-st.caption("Intelligent automation for AIOps, DevOps & MLOps tasks")
+st.title("🤖 GitHub Repo Assistant")
+st.caption("Task assistant for repositories in your connected GitHub account (via access token)")
 
 # Sidebar
 with st.sidebar:
@@ -60,10 +60,10 @@ with st.sidebar:
     
     st.header("🎯 Quick Actions")
     example_tasks = {
-        "📦 Get Repo Info": "Get information about facebook/react repository",
-        "🔍 Search Repos": "Search for repositories about machine learning",
-        "📋 List Issues": "List open issues in vercel/next.js",
-        "📄 Get README": "Get the README file from langchain-ai/langchain",
+        "📂 List my repos": "List my repositories in the connected GitHub account",
+        "📦 Info on my repo": "Get information (stars, description) for one of my repositories",
+        "📋 Issues in my repo": "List open issues in one of my repositories",
+        "📄 README from my repo": "Get the README file from one of my repositories",
     }
     
     for label, task in example_tasks.items():
@@ -100,6 +100,7 @@ with tab1:
     
     with col1:
         st.subheader("📝 Task Input")
+        st.caption("Tasks run against repositories in your connected GitHub account (GITHUB_TOKEN in .env).")
         
         # Use quick task if set
         default_prompt = st.session_state.get("quick_task", "")
@@ -110,7 +111,7 @@ with tab1:
             "Describe your task:",
             value=default_prompt,
             height=120,
-            placeholder="e.g., Get the star count and description of facebook/react repository"
+            placeholder="e.g., List my repositories · Get README from my repo owner/repo-name · List open issues in my repo X"
         )
         
         with st.expander("🔧 Advanced Options"):
@@ -416,6 +417,11 @@ with tab4:
     st.subheader("🔧 System Architecture")
     
     st.markdown("""
+    ### What this assistant does
+    
+    This assistant performs tasks **only on repositories in your connected GitHub account**.  
+    Set **GITHUB_TOKEN** in `.env` (Personal Access Token with `repo` scope). The assistant can list your repos, read files, list/create issues, and run other GitHub actions on **your** repos—not on arbitrary public repos.
+
     ### Agent Pipeline Flow
     
     ```
@@ -436,18 +442,18 @@ with tab4:
     | **UI** | Streamlit | Interactive dashboard |
     | **Queue** | Redis RQ | Async task processing |
     | **Database** | PostgreSQL | Persistent storage |
-    | **Observability** | Langfuse | LLM tracing |
-    | **Guardrails** | NeMo Guardrails | Input validation |
+    | **GitHub** | Token in .env | Access to your account's repos |
+    | **Observability** | Langfuse | LLM tracing (optional) |
     
     ### Features
     
+    - ✅ Tasks on **your** GitHub repos (list repos, get files, issues, etc.)
     - ✅ Chain-of-Thought planning with few-shot examples
     - ✅ Step-by-step verification after each execution
     - ✅ Automatic replanning on failure
     - ✅ Granular execution logging
     - ✅ Multi-user task isolation
     - ✅ Real-time streaming responses
-    - ✅ Production-grade error handling with retries
     """)
     
     st.markdown("---")
@@ -465,4 +471,4 @@ with tab4:
 
 # Footer
 st.markdown("---")
-st.caption("AI Operations Assistant | Built with LangGraph, FastAPI, Streamlit")
+st.caption("GitHub Repo Assistant | Tasks on your connected account's repositories | LangGraph, FastAPI, Streamlit")
