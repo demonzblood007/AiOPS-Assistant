@@ -1,0 +1,27 @@
+# Core Framework
+fastapi
+uvicorn[standard]
+streamlit
+
+# LLM & Agents
+langchain
+langchain-openai
+langgraph
+
+# Task Queue
+redis
+rq
+
+# Observability
+langfuse
+
+# Data Validation
+pydantic
+pydantic-settings
+
+# HTTP Client
+httpx
+
+# Utilities
+python-dotenv
+structlog
