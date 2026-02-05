@@ -11,6 +11,26 @@ from db.database import async_session
 from db.models import Task
 
 
+# Single persistent loop for the worker to avoid "event loop is closed" on Windows
+_worker_loop = asyncio.new_event_loop()
+
+
+def _run_async(coro):
+    """Run an async coroutine on the worker loop (Windows-safe, no per-call close)."""
+    global _worker_loop
+    if _worker_loop.is_closed():
+        _worker_loop = asyncio.new_event_loop()
+    try:
+        return _worker_loop.run_until_complete(coro)
+    except RuntimeError:
+        # If loop is already running, create a new one just for this call
+        temp_loop = asyncio.new_event_loop()
+        try:
+            return temp_loop.run_until_complete(coro)
+        finally:
+            temp_loop.close()
+
+
 # Redis connection
 redis_conn = Redis.from_url(settings.redis_url)
 
@@ -61,7 +81,7 @@ def process_task(user_id: str, task_id: str, prompt: str, context: dict = None) 
     """Process a task through the agent workflow."""
     
     # Save to DB as started
-    asyncio.run(_save_to_db(user_id, task_id, prompt, context, "planning", started_at=datetime.utcnow()))
+    _run_async(_save_to_db(user_id, task_id, prompt, context, "planning", started_at=datetime.utcnow()))
     
     # Build initial state
     initial_state = {
@@ -79,7 +99,7 @@ def process_task(user_id: str, task_id: str, prompt: str, context: dict = None) 
     }
     
     # Run workflow
-    final_state = asyncio.run(agent_workflow.ainvoke(initial_state))
+    final_state = _run_async(agent_workflow.ainvoke(initial_state))
     
     # Determine status
     status = TaskStatus.COMPLETED if final_state.get("confidence", 0) > 0 else TaskStatus.FAILED
@@ -98,7 +118,7 @@ def process_task(user_id: str, task_id: str, prompt: str, context: dict = None) 
     redis_conn.setex(result.redis_key, settings.task_timeout, result.model_dump_json())
     
     # Save to DB (permanent)
-    asyncio.run(_save_to_db(
+    _run_async(_save_to_db(
         user_id, task_id, prompt, context,
         status.value,
         plan=final_state.get("plan"),
@@ -131,7 +151,8 @@ async def enqueue_task(task_input: TaskInput) -> str:
         task_id,
         task_input.prompt,
         task_input.context,
-        job_id=f"{task_input.user_id}:{task_id}",
+        # RQ job ids cannot contain ":" — use a safe separator
+        job_id=f"{task_input.user_id}-{task_id}",
     )
     
     return task_id

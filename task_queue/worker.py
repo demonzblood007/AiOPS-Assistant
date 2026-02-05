@@ -6,7 +6,7 @@ import sys
 import logging
 import uuid
 from redis import Redis
-from rq import Worker, Queue
+from rq import Worker, Queue, SimpleWorker
 from config import settings
 
 # Configure logging
@@ -55,18 +55,23 @@ def run_worker():
     ]
     logger.info(f"Listening on queues: high, default, low")
     
-    # Create worker
-    # Use a unique worker name to avoid collisions when multiple workers connect
+    # Create worker (forking Worker on POSIX, SimpleWorker on Windows where fork is unavailable)
+    WorkerClass = GracefulWorker if os.name != "nt" else SimpleWorker
     worker_name = f"worker-{uuid.uuid4().hex[:8]}"
-    worker = GracefulWorker(
+    worker = WorkerClass(
         queues,
         connection=redis_conn,
         name=worker_name,
     )
     
-    # Register signal handlers
-    signal.signal(signal.SIGTERM, worker.request_stop)
-    signal.signal(signal.SIGINT, worker.request_stop)
+    # Register signal handlers where supported
+    if hasattr(worker, "request_stop"):
+        try:
+            signal.signal(signal.SIGTERM, worker.request_stop)
+            signal.signal(signal.SIGINT, worker.request_stop)
+        except Exception:
+            # Signals may not be available on some platforms; continue without
+            pass
     
     logger.info("Worker ready. Waiting for tasks...")
     logger.info("-" * 50)

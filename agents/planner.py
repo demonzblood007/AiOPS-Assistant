@@ -1,12 +1,30 @@
 """Planner - LLM generates JSON execution plan with streaming."""
 
 import json
+import logging
+import re
 from typing import AsyncGenerator
 from langchain_core.prompts import ChatPromptTemplate
 
 from llm import get_llm
 from tools import get_tools_description
 from observability import get_langfuse_handler
+from db.tracker import ExecutionTracker
+
+logger = logging.getLogger(__name__)
+
+
+def _extract_json(text: str) -> str:
+    """Strip markdown fences like ```json ... ``` or ``` ... ``` and return raw JSON string."""
+    if not text:
+        return ""
+    stripped = text.strip()
+    # Match ```json or ``` then capture until closing ``` (no $ so trailing whitespace is ok)
+    m = re.search(r"```(?:json)?\s*\n?(.*?)```", stripped, re.DOTALL | re.IGNORECASE)
+    if m:
+        return m.group(1).strip()
+    return stripped
+
 
 PLANNER_PROMPT = """You are an expert AI Operations planner for an assistant that acts on the user's GitHub account via an access token. Your job is to decompose user requests into executable tool-based plans.
 
@@ -141,7 +159,8 @@ async def generate_plan_stream(
         full_response += content
         yield content
     
-    yield f"\n__DONE__{full_response}"
+    clean = _extract_json(full_response)
+    yield f"\n__DONE__{clean}"
 
 
 async def generate_plan(prompt: str, context: dict = None, user_id: str = None, task_id: str = None) -> dict:
@@ -165,9 +184,11 @@ async def generate_plan(prompt: str, context: dict = None, user_id: str = None, 
     })
     
     try:
-        plan = json.loads(response.content)
+        clean = _extract_json(response.content)
+        plan = json.loads(clean)
         return {"success": True, "plan": plan}
     except json.JSONDecodeError:
+        logger.error("Planner returned invalid JSON. Raw response: %s", response.content)
         return {"success": False, "error": "Invalid JSON from LLM", "raw": response.content}
 
 
@@ -191,6 +212,21 @@ async def planner_node(state: dict) -> dict:
             "thinking": result["plan"].get("thinking", ""),
         }
     else:
+        # Log the planning failure so it appears in execution logs
+        user_id = state.get("user_id")
+        task_id = state.get("task_id")
+        if user_id and task_id:
+            try:
+                tracker = ExecutionTracker(user_id, task_id)
+                await tracker.log_event(
+                    event_type="planning",
+                    event_name="plan_failed",
+                    success=False,
+                    error_message=result.get("error"),
+                    llm_response=result.get("raw"),
+                )
+            except Exception as e:
+                logger.error("Failed to log planning error: %s", e)
         return {
             **state,
             "plan_valid": False,
