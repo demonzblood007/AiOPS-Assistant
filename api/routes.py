@@ -17,7 +17,7 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 @router.post("/", response_model=dict)
 async def create_task(task: TaskInput):
     """Submit a new task for async processing."""
-    task_id = enqueue_task(task)
+    task_id = await enqueue_task(task)
     
     return {
         "user_id": task.user_id,
@@ -34,7 +34,7 @@ async def get_task(
     user_id: str = Query(..., description="User ID for task isolation"),
 ):
     """Get task status and result."""
-    result = get_task_result(user_id, task_id)
+    result = await get_task_result(user_id, task_id)
     
     if not result:
         raise HTTPException(status_code=404, detail="Task not found")

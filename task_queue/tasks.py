@@ -112,8 +112,8 @@ def process_task(user_id: str, task_id: str, prompt: str, context: dict = None) 
     return result.model_dump()
 
 
-def enqueue_task(task_input: TaskInput) -> str:
-    """Enqueue a task for processing."""
+async def enqueue_task(task_input: TaskInput) -> str:
+    """Enqueue a task for processing (async-friendly, no nested asyncio.run)."""
     task_id = task_input.generate_task_id()
     queue = get_queue(task_input.priority)
     
@@ -121,10 +121,10 @@ def enqueue_task(task_input: TaskInput) -> str:
     initial = TaskResult(user_id=task_input.user_id, task_id=task_id, status=TaskStatus.PENDING)
     redis_conn.setex(initial.redis_key, settings.task_timeout, initial.model_dump_json())
     
-    # Save to DB
-    asyncio.run(_save_to_db(task_input.user_id, task_id, task_input.prompt, task_input.context, "pending"))
+    # Save to DB (schedule in current loop)
+    asyncio.create_task(_save_to_db(task_input.user_id, task_id, task_input.prompt, task_input.context, "pending"))
     
-    # Enqueue job
+    # Enqueue job (RQ is sync)
     queue.enqueue(
         process_task,
         task_input.user_id,
@@ -137,7 +137,7 @@ def enqueue_task(task_input: TaskInput) -> str:
     return task_id
 
 
-def get_task_result(user_id: str, task_id: str) -> TaskResult | None:
+async def get_task_result(user_id: str, task_id: str) -> TaskResult | None:
     """Get task result from Redis (fast) or DB (fallback)."""
     key = f"task:{user_id}:{task_id}"
     data = redis_conn.get(key)
@@ -146,22 +146,19 @@ def get_task_result(user_id: str, task_id: str) -> TaskResult | None:
         return TaskResult.model_validate_json(data)
     
     # Fallback to DB
-    async def _get_from_db():
-        async with async_session() as db:
-            from sqlalchemy import select
-            result = await db.execute(
-                select(Task).where(Task.user_id == user_id, Task.task_id == task_id)
+    async with async_session() as db:
+        from sqlalchemy import select
+        result = await db.execute(
+            select(Task).where(Task.user_id == user_id, Task.task_id == task_id)
+        )
+        task = result.scalar_one_or_none()
+        if task:
+            return TaskResult(
+                user_id=task.user_id,
+                task_id=task.task_id,
+                status=TaskStatus(task.status),
+                result=task.final_output,
+                errors=task.errors or [],
+                completed_at=task.completed_at,
             )
-            task = result.scalar_one_or_none()
-            if task:
-                return TaskResult(
-                    user_id=task.user_id,
-                    task_id=task.task_id,
-                    status=TaskStatus(task.status),
-                    result=task.final_output,
-                    errors=task.errors or [],
-                    completed_at=task.completed_at,
-                )
-            return None
-    
-    return asyncio.run(_get_from_db())
+        return None

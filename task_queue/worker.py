@@ -1,8 +1,10 @@
 """RQ Worker with logging and graceful shutdown."""
 
+import os
 import signal
 import sys
 import logging
+import uuid
 from redis import Redis
 from rq import Worker, Queue
 from config import settings
@@ -54,10 +56,12 @@ def run_worker():
     logger.info(f"Listening on queues: high, default, low")
     
     # Create worker
+    # Use a unique worker name to avoid collisions when multiple workers connect
+    worker_name = f"worker-{uuid.uuid4().hex[:8]}"
     worker = GracefulWorker(
         queues,
         connection=redis_conn,
-        name=f"worker-{settings.redis_url.split('/')[-1]}",
+        name=worker_name,
     )
     
     # Register signal handlers
