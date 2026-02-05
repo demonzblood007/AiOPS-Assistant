@@ -42,8 +42,8 @@ class Settings(BaseSettings):
     # Redis
     redis_url: str = "redis://localhost:6379/0"
     
-    # PostgreSQL
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/aiops"
+    # PostgreSQL (use port 5433 when using Docker postgres alongside local Postgres on 5432)
+    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5433/aiops"
     
     # Langfuse (optional)
     langfuse_public_key: Optional[str] = None

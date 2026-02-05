@@ -1,7 +1,7 @@
 version: "3.8"
 
 services:
-  # PostgreSQL Database (App)
+  # PostgreSQL Database (App) - host 5433 to avoid conflict with local Postgres on 5432
   postgres:
     image: postgres:15-alpine
     environment:
@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: aiops
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -59,9 +59,12 @@ services:
       timeout: 5s
       retries: 5
 
-  # FastAPI Backend
+  # App image (built once, shared by api, worker, ui)
   api:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: trulymadly-app:latest
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     ports:
       - "8000:8000"
@@ -79,9 +82,9 @@ services:
       langfuse:
         condition: service_started
 
-  # RQ Worker
+  # RQ Worker (same image as api)
   worker:
-    build: .
+    image: trulymadly-app:latest
     command: python -m task_queue.worker
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/aiops
@@ -95,9 +98,9 @@ services:
       redis:
         condition: service_healthy
 
-  # Streamlit UI
+  # Streamlit UI (same image as api)
   ui:
-    build: .
+    image: trulymadly-app:latest
     command: streamlit run ui/app.py --server.port 8501 --server.address 0.0.0.0
     ports:
       - "8501:8501"

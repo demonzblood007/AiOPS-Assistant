@@ -1,0 +1,45 @@
+# Git and version control
+.git
+.gitignore
+
+# Environment and local config (use env_file in compose)
+.env
+.env.*
+!.env.example
+
+# Python virtual envs and caches
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.so
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# IDE and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Testing and docs (not needed in container)
+.pytest_cache/
+.coverage
+htmlcov/
+*.md
+!README.md
+
+# Docker (avoid recursive copy)
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Logs and temp
+*.log
+.cursor/

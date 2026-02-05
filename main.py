@@ -10,7 +10,17 @@ from db import init_db
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize resources on startup."""
-    await init_db()
+    try:
+        await init_db()
+    except Exception as e:
+        import sys
+        msg = str(e).lower()
+        if "password" in msg or "connection" in msg or "refused" in msg:
+            print("\n*** Database connection failed ***", file=sys.stderr)
+            print("Start Postgres (and Redis if needed) with:", file=sys.stderr)
+            print("  docker compose up -d postgres redis", file=sys.stderr)
+            print("Then ensure .env has: DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/aiops", file=sys.stderr)
+        raise
     yield
 
 
